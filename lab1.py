@@ -4,6 +4,12 @@ import os
 import tkinter as tk
 import tkinter.messagebox as mb
 import re
+import winreg
+import hashlib
+import platform
+import rsa
+import sys
+
 ui = None
 current_user = None
 fail_count = 0
@@ -227,7 +233,39 @@ class ChangePasswordPage(tk.Frame):
             self.master.switch_page(AdminPage)
         else:
             self.master.switch_page(UserPage)
+REG_PATH = r"Software\Orlov"
+
+def get_system_info():
+    sys_info = f"{platform.system()}_{platform.release()}_{platform.version()}_{platform.architecture()}_{platform.processor()}"
+    return sys_info
+
+def get_registry_value(name):
+    try:
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, REG_PATH, 0, winreg.KEY_READ) as key:
+            value, _ = winreg.QueryValueEx(key, name)
+            return value
+    except FileNotFoundError:
+        return None
+
+def verify_signature():
+    pubkey_pem = get_registry_value("PublicKey")
+    signature_hex = get_registry_value("Signature")
+
+    if not pubkey_pem or not signature_hex:
+        print("Ошибка: Публичный ключ или подпись отсутствуют в реестре.")
+        sys.exit(1)
+
+    system_hash = hashlib.sha256(get_system_info().encode()).digest()
+
+    try:
+        pubkey = rsa.PublicKey.load_pkcs1(pubkey_pem.encode())
+        signature = bytes.fromhex(signature_hex)
+        rsa.verify(system_hash, signature, pubkey)
+    except rsa.VerificationError:
+        print("Ошибка: Подпись не совпадает. Запуск невозможен.")
+        sys.exit(1)
 
 if __name__ == "__main__":
+    verify_signature()
     app = App()
     app.mainloop()
