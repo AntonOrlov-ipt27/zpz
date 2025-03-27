@@ -236,9 +236,18 @@ class ChangePasswordPage(tk.Frame):
 REG_PATH = r"Software\Orlov"
 
 def get_system_info():
-    """Получает имя пользователя и хеширует его"""
-    username = os.getlogin().encode()
-    return hashlib.sha256(username).digest()
+    """Собирает и хеширует данные о системе"""
+    username = os.getlogin()
+    computer_name = os.getenv('COMPUTERNAME')
+    windows_dir = os.getenv('WINDIR')
+    system_root = os.getenv('SystemRoot')
+    mouse_buttons = str(os.system('echo %NUMBER_OF_MOUSE_BUTTONS%'))
+    screen_width = str(os.get_terminal_size().columns) if os.name != 'nt' else str(os.system('wmic desktopmonitor get screenwidth'))
+    disks = ','.join([d for d in os.popen("wmic logicaldisk get name").read().split()[1:]])
+    disk_info = os.popen("wmic logicaldisk get size").read().split()[1]
+
+    sys_data = f"{username}{computer_name}{windows_dir}{system_root}{mouse_buttons}{screen_width}{disks}{disk_info}".encode()
+    return hashlib.sha256(sys_data).digest()
 
 def get_registry_value(name):
     """Читает значение из реестра"""
