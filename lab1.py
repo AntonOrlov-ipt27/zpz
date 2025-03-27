@@ -4,6 +4,7 @@ import os
 import tkinter as tk
 import tkinter.messagebox as mb
 import re
+
 import winreg
 import hashlib
 import rsa
@@ -236,7 +237,6 @@ class ChangePasswordPage(tk.Frame):
 REG_PATH = r"Software\Orlov"
 
 def get_system_info():
-    """Собирает и хеширует данные о системе"""
     username = os.getlogin()
     computer_name = os.getenv('COMPUTERNAME')
     windows_dir = os.getenv('WINDIR')
@@ -245,40 +245,33 @@ def get_system_info():
     screen_width = str(os.get_terminal_size().columns) if os.name != 'nt' else str(os.system('wmic desktopmonitor get screenwidth'))
     disks = ','.join([d for d in os.popen("wmic logicaldisk get name").read().split()[1:]])
     disk_info = os.popen("wmic logicaldisk get size").read().split()[1]
-
     sys_data = f"{username}{computer_name}{windows_dir}{system_root}{mouse_buttons}{screen_width}{disks}{disk_info}".encode()
     return hashlib.sha256(sys_data).digest()
 
 def get_registry_value(name):
-    """Читает значение из реестра"""
-    try:
-        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, REG_PATH, 0, winreg.KEY_READ) as key:
-            value, _ = winreg.QueryValueEx(key, name)
-            return value
-    except FileNotFoundError:
-        return None
+    with winreg.OpenKey(winreg.HKEY_CURRENT_USER, REG_PATH, 0, winreg.KEY_READ) as key:
+        value, _ = winreg.QueryValueEx(key, name)
+        return value
 
 def verify_signature():
-    """Проверяет подпись имени пользователя"""
     pubkey_pem = get_registry_value("PublicKey")
     signature = get_registry_value("Signature")
 
     if not pubkey_pem or not signature:
-        print("Ошибка: Публичный ключ или подпись отсутствуют в реестре.")
+        print("Error: The public key or signature is missing from the registry.")
         sys.exit(1)
-
     system_hash = get_system_info()
 
     try:
         pubkey = rsa.PublicKey.load_pkcs1(pubkey_pem)
         rsa.verify(system_hash, signature, pubkey)
-        print("[+] Подпись успешно подтверждена!")
+        print("[+] Signature Verified!")
     except rsa.VerificationError:
-        print("[-] Ошибка: Подпись не совпадает. Запуск невозможен.")
+        print("[-] Error: Signature does not match. Unable to launch.")
         sys.exit(1)
 
 if __name__ == "__main__":
     verify_signature()
-    print("[*] Запуск приложения...")
+    print("[*] Launching the application...")
     app = App()
     app.mainloop()
