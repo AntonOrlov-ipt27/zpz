@@ -6,7 +6,6 @@ import tkinter.messagebox as mb
 import re
 import winreg
 import hashlib
-import platform
 import rsa
 import sys
 
@@ -238,11 +237,11 @@ REG_PATH = r"Software\Orlov"
 
 def get_system_info():
     """Получает имя пользователя и хеширует его"""
-    username = os.getlogin()
-    return hashlib.sha256(username.encode()).digest()
+    username = os.getlogin().encode()
+    return hashlib.sha256(username).digest()
 
 def get_registry_value(name):
-    """Получает значение из реестра"""
+    """Читает значение из реестра"""
     try:
         with winreg.OpenKey(winreg.HKEY_CURRENT_USER, REG_PATH, 0, winreg.KEY_READ) as key:
             value, _ = winreg.QueryValueEx(key, name)
@@ -251,7 +250,7 @@ def get_registry_value(name):
         return None
 
 def verify_signature():
-    """Проверяет подпись, используя имя пользователя"""
+    """Проверяет подпись имени пользователя"""
     pubkey_pem = get_registry_value("PublicKey")
     signature = get_registry_value("Signature")
 
@@ -259,14 +258,14 @@ def verify_signature():
         print("Ошибка: Публичный ключ или подпись отсутствуют в реестре.")
         sys.exit(1)
 
-    system_hash = get_system_info()  # Теперь это хеш имени пользователя
+    system_hash = get_system_info()
 
     try:
-        pubkey = rsa.PublicKey.load_pkcs1(pubkey_pem)  
+        pubkey = rsa.PublicKey.load_pkcs1(pubkey_pem)
         rsa.verify(system_hash, signature, pubkey)
-        print("[+] Подпись верна, запуск разрешен.")
+        print("[+] Подпись успешно подтверждена!")
     except rsa.VerificationError:
-        print("Ошибка: Подпись не совпадает. Запуск невозможен.")
+        print("[-] Ошибка: Подпись не совпадает. Запуск невозможен.")
         sys.exit(1)
 
 if __name__ == "__main__":
