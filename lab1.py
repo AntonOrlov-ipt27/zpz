@@ -237,10 +237,12 @@ class ChangePasswordPage(tk.Frame):
 REG_PATH = r"Software\Orlov"
 
 def get_system_info():
-    sys_info = f"{platform.system()}_{platform.release()}_{platform.version()}_{platform.architecture()}_{platform.processor()}"
-    return sys_info
+    """Получает имя пользователя и хеширует его"""
+    username = os.getlogin()
+    return hashlib.sha256(username.encode()).digest()
 
 def get_registry_value(name):
+    """Получает значение из реестра"""
     try:
         with winreg.OpenKey(winreg.HKEY_CURRENT_USER, REG_PATH, 0, winreg.KEY_READ) as key:
             value, _ = winreg.QueryValueEx(key, name)
@@ -249,6 +251,7 @@ def get_registry_value(name):
         return None
 
 def verify_signature():
+    """Проверяет подпись, используя имя пользователя"""
     pubkey_pem = get_registry_value("PublicKey")
     signature = get_registry_value("Signature")
 
@@ -256,11 +259,10 @@ def verify_signature():
         print("Ошибка: Публичный ключ или подпись отсутствуют в реестре.")
         sys.exit(1)
 
-    system_hash = hashlib.sha256(get_system_info().encode()).digest()
+    system_hash = get_system_info()  # Теперь это хеш имени пользователя
 
     try:
-        pubkey = rsa.PublicKey.load_pkcs1(pubkey_pem)  # Уже bytes, не нужно encode()
-        signature = bytes(signature)  # Декодируем правильно
+        pubkey = rsa.PublicKey.load_pkcs1(pubkey_pem)  
         rsa.verify(system_hash, signature, pubkey)
         print("[+] Подпись верна, запуск разрешен.")
     except rsa.VerificationError:
