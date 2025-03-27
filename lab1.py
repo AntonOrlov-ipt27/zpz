@@ -233,6 +233,7 @@ class ChangePasswordPage(tk.Frame):
             self.master.switch_page(AdminPage)
         else:
             self.master.switch_page(UserPage)
+            
 REG_PATH = r"Software\Orlov"
 
 def get_system_info():
@@ -249,23 +250,25 @@ def get_registry_value(name):
 
 def verify_signature():
     pubkey_pem = get_registry_value("PublicKey")
-    signature_hex = get_registry_value("Signature")
+    signature = get_registry_value("Signature")
 
-    if not pubkey_pem or not signature_hex:
+    if not pubkey_pem or not signature:
         print("Ошибка: Публичный ключ или подпись отсутствуют в реестре.")
         sys.exit(1)
 
     system_hash = hashlib.sha256(get_system_info().encode()).digest()
 
     try:
-        pubkey = rsa.PublicKey.load_pkcs1(pubkey_pem.encode())
-        signature = bytes.fromhex(signature_hex)
+        pubkey = rsa.PublicKey.load_pkcs1(pubkey_pem)  # Уже bytes, не нужно encode()
+        signature = bytes(signature)  # Декодируем правильно
         rsa.verify(system_hash, signature, pubkey)
+        print("[+] Подпись верна, запуск разрешен.")
     except rsa.VerificationError:
         print("Ошибка: Подпись не совпадает. Запуск невозможен.")
         sys.exit(1)
 
 if __name__ == "__main__":
     verify_signature()
+    print("[*] Запуск приложения...")
     app = App()
     app.mainloop()
