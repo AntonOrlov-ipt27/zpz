@@ -242,7 +242,7 @@ def get_system_info():
     windows_dir = os.getenv('WINDIR')
     system_root = os.getenv('SystemRoot')
     mouse_buttons = os.getenv("NUMBER_OF_MOUSE_BUTTONS")
-    screen_width = str(os.get_terminal_size().columns) if os.name != 'nt' else os.popen('wmic desktopmonitor get screenwidth').read().strip()
+    screen_width = str(os.get_terminal_size().columns) if os.name != 'nt' else str(os.system('wmic desktopmonitor get screenwidth'))
     disks = ','.join([d for d in os.popen("wmic logicaldisk get name").read().split()[1:]])
     disk_info = os.popen("wmic logicaldisk get size").read().split()[1]
     sys_data = f"{username}{computer_name}{windows_dir}{system_root}{mouse_buttons}{screen_width}{disks}{disk_info}".encode()
