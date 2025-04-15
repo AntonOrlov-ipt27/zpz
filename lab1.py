@@ -376,16 +376,18 @@ def decrypt_file_on_start(key: bytes):
         with open(ENC_FILE, "rb") as ef:
             encrypted_data = ef.read()
 
-        # Расшифровываем через CryptoAPI (CryptUnprotectData)
+        # Расшифровываем данные с помощью CryptUnprotectData
         decrypted_data = win32crypt.CryptUnprotectData(
-            encrypted_data,
-            None,
-            key,
-            None,
-            0
-        )[1]
+            win32crypt.DATA_BLOB(encrypted_data),  # Данные для расшифровки
+            None,  # Описание данных (можно оставить None)
+            key,   # Секретный ключ (entropy)
+            None,  # Reserved (должен быть None)
+            0      # Флаги
+        )[1]  # Второй элемент результата содержит расшифрованные данные
+
         with open(JSON_FILE, "wb") as f:
-            f.write(decrypted_data)
+            f.write(decrypted_data)  # Записываем расшифрованные данные в файл
+
         print("[*] Данные расшифрованы при запуске.")
 
 if __name__ == "__main__":
