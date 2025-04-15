@@ -388,40 +388,28 @@ def decrypt_file_on_start(key: bytes):
         print("[*] Данные расшифрованы при запуске.")
 
 if __name__ == "__main__":
-    verify_signature()
-    key = initialize_passphrase()
+    verify_signature()  # 1. Проверка сигнатуры
 
+    # 2. Проверка кодовой фразы
+    key = initialize_passphrase()
     if key is None:
         key = verify_passphrase()
 
-    # === ЕСЛИ ЕСТЬ ЗАШИФРОВАННЫЙ ФАЙЛ, РАСШИФРОВЫВАЕМ ===
-    if os.path.isfile("users.enc") and os.access("users.enc", os.R_OK):
-        try:
-            decrypt_file_on_start(key)
-            os.remove("users.enc")
-            print("[*] Зашифрованный файл удален, данные теперь хранятся как users.json.")
-        except Exception as e:
-            print(f"[!] Ошибка при расшифровке: {e}")
-            exit(1)
+    # 3. Работа с файлами
+    if os.path.exists(ENC_FILE) and os.access(ENC_FILE, os.R_OK):
+        # Есть users.enc — расшифровываем
+        decrypt_file_on_start(key)
+        os.remove(ENC_FILE)
+        print("[*] Зашифрованный файл удалён, данные сохранены как users.json.")
 
-    # === ЕСЛИ НЕТ НИ JSON, НИ ENC – СОЗДАЁМ ПЕРВИЧНЫЕ ДАННЫЕ И СРАЗУ ШИФРУЕМ ===
-    elif not os.path.isfile("users.json") or not os.access("users.json", os.R_OK):
+    elif not os.path.exists(JSON_FILE) or not os.access(JSON_FILE, os.R_OK):
+        # Нет ни .json, ни .enc — создаём новый users.json
         ui = {"admin": {"password": first_password, "restrict": False, "ban": False}}
+        time.sleep(1)
+        with open(JSON_FILE, 'w') as ui_file:
+            json.dump(ui, ui_file)
+        print("[*] Новый users.json был создан.")
 
-        try:
-            with open("users.json", 'w') as ui_file:
-                json.dump(ui, ui_file)
-                ui_file.flush()
-                os.fsync(ui_file.fileno())
-            print("[*] Новый users.json создан.")
-
-            encrypt_file_on_exit(key)
-            os.remove("users.json")
-            print("[*] Новый users.json был зашифрован в users.enc и удален.")
-        except Exception as e:
-            print(f"[!] Ошибка при создании или шифровании: {e}")
-            exit(1)
-
-    # === ЗАПУСК GUI ===
+    # 4. Запуск GUI
     app = App(key)
     app.mainloop()
