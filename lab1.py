@@ -357,17 +357,17 @@ def encrypt_file_on_exit(key: bytes):
         with open(JSON_FILE, "rb") as f:
             data = f.read()
 
-        # Шифруем через CryptoAPI (CryptProtectData)
+        # Шифруем данные с помощью CryptProtectData
         encrypted_blob = win32crypt.CryptProtectData(
-            data,
-            None,
-            key,  # это и есть entropy
-            None,
-            None,
-            0
+            win32crypt.DATA_BLOB(data),  # Данные для шифрования
+            None,  # Описание данных (можно оставить None)
+            key,   # Секретный ключ (entropy)
+            None,  # Reserved (должен быть None)
+            0      # Флаги (обычно 0)
         )
+
         with open(ENC_FILE, "wb") as ef:
-            ef.write(encrypted_blob)
+            ef.write(encrypted_blob)  # Записываем зашифрованные данные в файл
         os.remove(JSON_FILE)
         print("[*] Данные зашифрованы при выходе.")
 
@@ -382,7 +382,7 @@ def decrypt_file_on_start(key: bytes):
             None,  # Описание данных (можно оставить None)
             key,   # Секретный ключ (entropy)
             None,  # Reserved (должен быть None)
-            0      # Флаги
+            0      # Флаги (обычно 0)
         )[1]  # Второй элемент результата содержит расшифрованные данные
 
         with open(JSON_FILE, "wb") as f:
