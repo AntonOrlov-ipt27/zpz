@@ -382,7 +382,6 @@ def decrypt_file_on_start(key: bytes):
             None,
             key,
             None,
-            None,
             0
         )[1]
         with open(JSON_FILE, "wb") as f:
