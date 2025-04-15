@@ -414,6 +414,7 @@ def decrypt_user_file(passphrase):
     print("[+] Файл users.json успешно расшифрован")
 
 if __name__ == "__main__":
+    verify_signature()
     initialize_passphrase()         # Запустится только при первом запуске
     key = verify_passphrase()       # Вернёт сессионный ключ (SHA256(passphrase + salt))
     decrypt_file_on_start(key)      # Расшифрует файл users.enc → users.json
