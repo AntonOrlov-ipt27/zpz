@@ -394,32 +394,34 @@ if __name__ == "__main__":
     if key is None:
         key = verify_passphrase()
 
-    # Проверка, есть ли зашифрованный файл
+    # === ЕСЛИ ЕСТЬ ЗАШИФРОВАННЫЙ ФАЙЛ, РАСШИФРОВЫВАЕМ ===
     if os.path.isfile("users.enc") and os.access("users.enc", os.R_OK):
-        # Если файл users.enc существует, расшифровываем его
-        decrypt_file_on_start(key)
-        
-        # После расшифровки users.json, удаляем users.enc
-        os.remove("users.enc")
-        print("[*] Зашифрованный файл удален, данные теперь хранятся как users.json.")
-    
-    elif not os.path.isfile("users.json") or not os.access("users.json", os.R_OK):
-        # Если файл users.json не существует, создаем новый
-        ui = {"admin": {"password": first_password, "restrict": False, "ban": False}}
-        
-        # Ждем 1 секунду, чтобы файл точно был доступен
-        time.sleep(1)
-        
-        with open("users.json", 'w') as ui_file:
-            ui_file.write(json.dumps(ui))
-        
-        # После создания users.json шифруем его в users.enc
-        encrypt_file_on_exit(key)
-        
-        # Удаляем users.json после шифрования
-        os.remove("users.json")
-        print("[*] Новый users.json был зашифрован в users.enc и удален.")
+        try:
+            decrypt_file_on_start(key)
+            os.remove("users.enc")
+            print("[*] Зашифрованный файл удален, данные теперь хранятся как users.json.")
+        except Exception as e:
+            print(f"[!] Ошибка при расшифровке: {e}")
+            exit(1)
 
-    # После этого будет загружен интерфейс
+    # === ЕСЛИ НЕТ НИ JSON, НИ ENC – СОЗДАЁМ ПЕРВИЧНЫЕ ДАННЫЕ И СРАЗУ ШИФРУЕМ ===
+    elif not os.path.isfile("users.json") or not os.access("users.json", os.R_OK):
+        ui = {"admin": {"password": first_password, "restrict": False, "ban": False}}
+
+        try:
+            with open("users.json", 'w') as ui_file:
+                json.dump(ui, ui_file)
+                ui_file.flush()
+                os.fsync(ui_file.fileno())
+            print("[*] Новый users.json создан.")
+
+            encrypt_file_on_exit(key)
+            os.remove("users.json")
+            print("[*] Новый users.json был зашифрован в users.enc и удален.")
+        except Exception as e:
+            print(f"[!] Ошибка при создании или шифровании: {e}")
+            exit(1)
+
+    # === ЗАПУСК GUI ===
     app = App(key)
     app.mainloop()
