@@ -351,12 +351,76 @@ def decrypt_file_on_start(key):
             f.write(decrypted_data)
         print("[*] Данные расшифрованы при запуске.")
 
+import win32crypt
+import win32cryptcon
+import ctypes
+import ctypes.wintypes
+import secrets
+
+def encrypt_user_file(passphrase):
+    if not os.path.exists("users.json"):
+        return
+
+    with open("users.json", "rb") as f:
+        plaintext = f.read()
+
+    salt = secrets.token_bytes(16)
+    session_key_material = hashlib.sha256(passphrase.encode() + salt).digest()
+
+    # Используем CryptProtectData (простой способ через CryptoAPI)
+    encrypted_data = win32crypt.CryptProtectData(
+        plaintext,
+        None,
+        session_key_material,
+        None,
+        None,
+        0
+    )[1]
+
+    with open("users.json.enc", "wb") as f:
+        f.write(salt + encrypted_data)
+
+    os.remove("users.json")
+    print("[+] Файл users.json зашифрован как users.json.enc")
+
+def decrypt_user_file(passphrase):
+    if not os.path.exists("users.json.enc"):
+        return
+
+    with open("users.json.enc", "rb") as f:
+        content = f.read()
+
+    salt = content[:16]
+    encrypted_data = content[16:]
+    session_key_material = hashlib.sha256(passphrase.encode() + salt).digest()
+
+    try:
+        decrypted = win32crypt.CryptUnprotectData(
+            encrypted_data,
+            None,
+            session_key_material,
+            None,
+            None,
+            0
+        )[1]
+    except Exception as e:
+        print("[-] Ошибка при расшифровке:", e)
+        mb.showerror("Ошибка", "Неверная кодовая фраза или повреждённый файл.")
+        sys.exit(1)
+
+    with open("users.json", "wb") as f:
+        f.write(decrypted)
+
+    print("[+] Файл users.json успешно расшифрован")
+
 if __name__ == "__main__":
     verify_signature()
-    initialize_passphrase()
-    session_key = verify_passphrase()
-    decrypt_file_on_start(session_key)
+    passphrase = verify_or_initialize_passphrase()
+    decrypt_user_file(passphrase)
+
     print("[*] Launching the application...")
     app = App()
-    atexit.register(lambda: encrypt_file_on_exit(session_key))
-    app.mainloop()
+    try:
+        app.mainloop()
+    finally:
+        encrypt_user_file(passphrase)
