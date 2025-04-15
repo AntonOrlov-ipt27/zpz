@@ -21,6 +21,8 @@ first_password = hash_password("")
 
 if os.path.isfile("users.json") and os.access("users.json", os.R_OK):
     ui = json.load(open("users.json"))
+else if os.path.isfile("users.enc") and os.access("users.enc", os.R_OK):
+    ui = json.load(open("users.enc"))
 else:
     with open("users.json", 'w') as ui_file:
         ui = {"admin": {"password": first_password, "restrict": False, "ban": False}}
