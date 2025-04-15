@@ -358,16 +358,14 @@ def encrypt_file_on_exit(key: bytes):
         with open(JSON_FILE, "rb") as f:
             data = f.read()
 
-        # Преобразуем данные в формат DATA_BLOB с помощью ctypes
-        data_blob = ctypes.create_string_buffer(data)
-
         # Шифруем данные с помощью CryptProtectData
         encrypted_blob = win32crypt.CryptProtectData(
-            data_blob,  # Данные для шифрования
-            key,         # Секретный ключ (entropy)
-            None,        # Reserved (None)
-            None,        # CRYPTPROTECT_PROMPTSTRUCT (None)
-            0            # Флаги (обычно 0)
+            data,  # Данные для шифрования (прямо байты)
+            None,  # Название данных, None для простоты
+            key,   # Секретный ключ (entropy)
+            None,  # Reserved (None)
+            None,  # CRYPTPROTECT_PROMPTSTRUCT (None)
+            0      # Флаги (обычно 0)
         )
 
         # Записываем зашифрованные данные в файл
@@ -381,12 +379,9 @@ def decrypt_file_on_start(key: bytes):
         with open(ENC_FILE, "rb") as ef:
             encrypted_data = ef.read()
 
-        # Преобразуем данные в формат DATA_BLOB с помощью ctypes
-        encrypted_blob = ctypes.create_string_buffer(encrypted_data)
-
         # Расшифровываем данные с помощью CryptUnprotectData
         decrypted_data = win32crypt.CryptUnprotectData(
-            encrypted_blob,
+            encrypted_data,  # Данные для расшифровки (прямо байты)
             key,   # Секретный ключ (entropy)
             None,  # Reserved (None)
             None,  # CRYPTPROTECT_PROMPTSTRUCT (None)
