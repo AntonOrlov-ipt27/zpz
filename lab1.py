@@ -400,6 +400,8 @@ if __name__ == "__main__":
         # Есть users.enc — расшифровываем
         decrypt_file_on_start(key)
         os.remove(ENC_FILE)
+        with open("users.json", "r") as f:
+            ui = json.load(f)
         print("[*] Зашифрованный файл удалён, данные сохранены как users.json.")
 
     elif not os.path.exists(JSON_FILE) or not os.access(JSON_FILE, os.R_OK):
@@ -410,8 +412,6 @@ if __name__ == "__main__":
             json.dump(ui, ui_file)
         print("[*] Новый users.json был создан.")
         
-    with open("users.json", "r") as f:
-    ui = json.load(f)
     # 4. Запуск GUI
     app = App(key)
     app.mainloop()
