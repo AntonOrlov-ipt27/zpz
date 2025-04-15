@@ -409,7 +409,9 @@ if __name__ == "__main__":
         with open(JSON_FILE, 'w') as ui_file:
             json.dump(ui, ui_file)
         print("[*] Новый users.json был создан.")
-
+        
+    with open("users.json", "r") as f:
+    ui = json.load(f)
     # 4. Запуск GUI
     app = App(key)
     app.mainloop()
