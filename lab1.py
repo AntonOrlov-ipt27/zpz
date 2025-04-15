@@ -233,7 +233,7 @@ class ChangePasswordPage(tk.Frame):
             self.master.switch_page(AdminPage)
         else:
             self.master.switch_page(UserPage)
-            
+        
 REG_PATH = r"Software\Orlov"
 
 def get_system_info():
@@ -270,8 +270,92 @@ def verify_signature():
         print("[-] Error: Signature does not match. Unable to launch.")
         sys.exit(1)
 
+#NEW
+import ctypes
+import base64
+import secrets
+import win32crypt
+import atexit
+
+PASS_KEY_NAME = "PassphraseHash"
+SALT_KEY_NAME = "Salt"
+ENC_FILE = "users.enc"
+JSON_FILE = "users.json"
+
+def store_registry_value(name, value):
+    with winreg.CreateKey(winreg.HKEY_CURRENT_USER, REG_PATH) as key:
+        winreg.SetValueEx(key, name, 0, winreg.REG_SZ, value)
+
+def initialize_passphrase():
+    if not os.path.exists(ENC_FILE):  # Первый запуск
+        root = tk.Tk()
+        root.withdraw()
+        passphrase = tk.simpledialog.askstring("Setup", "Введите кодовую фразу:", show="*")
+        if not passphrase:
+            mb.showerror("Ошибка", "Кодовая фраза не указана.")
+            sys.exit(1)
+
+        salt = secrets.token_bytes(16)
+        key = hashlib.sha256(passphrase.encode() + salt).digest()
+        store_registry_value(PASS_KEY_NAME, base64.b64encode(key).decode())
+        store_registry_value(SALT_KEY_NAME, base64.b64encode(salt).decode())
+        print("[+] Кодовая фраза установлена.")
+
+def verify_passphrase():
+    try:
+        stored_hash = base64.b64decode(get_registry_value(PASS_KEY_NAME))
+        salt = base64.b64decode(get_registry_value(SALT_KEY_NAME))
+    except Exception:
+        mb.showerror("Ошибка", "Кодовая фраза не настроена.")
+        sys.exit(1)
+
+    root = tk.Tk()
+    root.withdraw()
+    passphrase = tk.simpledialog.askstring("Verify", "Введите кодовую фразу:", show="*")
+    if not passphrase:
+        mb.showerror("Ошибка", "Кодовая фраза не указана.")
+        sys.exit(1)
+
+    key = hashlib.sha256(passphrase.encode() + salt).digest()
+    if key != stored_hash:
+        mb.showerror("Ошибка", "Неверная кодовая фраза.")
+        sys.exit(1)
+    return key  # Возвращаем сессионный ключ
+
+def encrypt_file_on_exit(key):
+    if os.path.exists(JSON_FILE):
+        with open(JSON_FILE, "rb") as f:
+            data = f.read()
+        desc = win32crypt.DATA_BLOB()
+        encrypted_blob = win32crypt.CryptProtectData(
+            win32crypt.DATA_BLOB(data),
+            None,
+            key,
+            None,
+            None,
+            0
+        )
+        with open(ENC_FILE, "wb") as ef:
+            ef.write(encrypted_blob.pbData)
+        os.remove(JSON_FILE)
+        print("[*] Данные зашифрованы при выходе.")
+
+def decrypt_file_on_start(key):
+    if os.path.exists(ENC_FILE):
+        with open(ENC_FILE, "rb") as ef:
+            encrypted_data = ef.read()
+        blob = win32crypt.DATA_BLOB(encrypted_data)
+        decrypted_data = win32crypt.CryptUnprotectData(blob, None, key, None, None, 0)[1]
+        with open(JSON_FILE, "wb") as f:
+            f.write(decrypted_data)
+        print("[*] Данные расшифрованы при запуске.")
+
 if __name__ == "__main__":
     verify_signature()
+    initialize_passphrase()
+    session_key = verify_passphrase()
+    decrypt_file_on_start(session_key)
     print("[*] Launching the application...")
     app = App()
+    atexit.register(lambda: encrypt_file_on_exit(session_key))
     app.mainloop()
