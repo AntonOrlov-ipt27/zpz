@@ -392,7 +392,7 @@ if __name__ == "__main__":
     if key is None:
         key = verify_passphrase()
 
-    # Проверяем, существует ли зашифрованный файл
+    # Проверка на наличие зашифрованного файла
     if os.path.isfile("users.enc") and os.access("users.enc", os.R_OK):
         # Если файл users.enc существует, расшифровываем его в users.json
         decrypt_file_on_start(key)
@@ -400,6 +400,7 @@ if __name__ == "__main__":
         # После расшифровки users.json, удаляем users.enc
         os.remove("users.enc")
         print("[*] Зашифрованный файл удален, данные теперь хранятся как users.json.")
+
     elif not os.path.isfile("users.json") or not os.access("users.json", os.R_OK):
         # Если файл users.json не существует, создаем новый и шифруем его в users.enc
         ui = {"admin": {"password": first_password, "restrict": False, "ban": False}}
@@ -416,4 +417,3 @@ if __name__ == "__main__":
     # Теперь файл users.json будет либо расшифрован из users.enc, либо создан и зашифрован заново
     app = App(key)
     app.mainloop()
-
