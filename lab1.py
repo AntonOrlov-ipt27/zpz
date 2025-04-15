@@ -27,18 +27,25 @@ else:
         ui_file.write(json.dumps(ui))
     
 class App(tk.Tk):
-    def __init__(self):
+    def __init__(self, key):
         tk.Tk.__init__(self)
 
+        self.key = key  # сохраняем ключ
         self.page = None
+
+        # Меню
         about_menu = tk.Menu(self, tearoff=0)
-        about_menu.add_command(label="Про програму", command=lambda: mb.showinfo("Info", "Автор: ФБ-22 Орлов Антон"
-                                                                                         "\nВаріант №6"))
+        about_menu.add_command(label="Про програму", command=lambda: mb.showinfo(
+            "Info", "Автор: ФБ-22 Орлов Антон\nВаріант №6"))
         menu = tk.Menu(self)
         menu.add_cascade(label="Довідка", menu=about_menu)
         self.config(menu=menu)
+
         self.switch_page(LoginPage)
         self.geometry("600x300")
+
+        # Обработчик закрытия окна
+        self.protocol("WM_DELETE_WINDOW", self.on_exit)
 
     def switch_page(self, page_class):
         new_page = page_class(self)
@@ -46,6 +53,10 @@ class App(tk.Tk):
             self.page.destroy()
         self.page = new_page
         self.page.pack()
+
+    def on_exit(self):
+        encrypt_file_on_exit(self.key)
+        self.destroy()
 
 class LoginPage(tk.Frame):
     def __init__(self, master):
@@ -372,14 +383,9 @@ def decrypt_file_on_start(key):
 
 if __name__ == "__main__":
     verify_signature()
-    initialize_passphrase()         # Запустится только при первом запуске
-    key = verify_passphrase()       # Вернёт сессионный ключ (SHA256(passphrase + salt))
-    decrypt_file_on_start(key)      # Расшифрует файл users.enc → users.json
+    initialize_passphrase()
+    key = verify_passphrase()
+    decrypt_file_on_start(key)
 
-    print("[*] Запуск приложения...")
-    app = App()
-
-    # При закрытии — шифруем обратно
-    atexit.register(lambda: encrypt_file_on_exit(key))
-
+    app = App(key)
     app.mainloop()
