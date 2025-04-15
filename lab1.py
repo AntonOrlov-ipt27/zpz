@@ -271,27 +271,42 @@ def verify_signature():
         sys.exit(1)
 
 #NEW
-import ctypes
+import hashlib
 import base64
+import os
 import secrets
+import tkinter as tk
+import tkinter.messagebox as mb
+import tkinter.simpledialog as sd
+import winreg
 import win32crypt
 import atexit
-import tkinter.simpledialog as sd
+import sys
 
+# Константы
+REG_PATH = r"Software\Orlov"
 PASS_KEY_NAME = "PassphraseHash"
 SALT_KEY_NAME = "Salt"
 ENC_FILE = "users.enc"
 JSON_FILE = "users.json"
 
+
 def store_registry_value(name, value):
     with winreg.CreateKey(winreg.HKEY_CURRENT_USER, REG_PATH) as key:
         winreg.SetValueEx(key, name, 0, winreg.REG_SZ, value)
+
+
+def get_registry_value(name):
+    with winreg.OpenKey(winreg.HKEY_CURRENT_USER, REG_PATH, 0, winreg.KEY_READ) as key:
+        value, _ = winreg.QueryValueEx(key, name)
+        return value
+
 
 def initialize_passphrase():
     if not os.path.exists(ENC_FILE):  # Первый запуск
         root = tk.Tk()
         root.withdraw()
-        passphrase = sd.askstring("Setup", "Введите кодовую фразу:", show="*")
+        passphrase = sd.askstring("Установка", "Введите кодовую фразу:", show="*")
         if not passphrase:
             mb.showerror("Ошибка", "Кодовая фраза не указана.")
             sys.exit(1)
@@ -301,6 +316,7 @@ def initialize_passphrase():
         store_registry_value(PASS_KEY_NAME, base64.b64encode(key).decode())
         store_registry_value(SALT_KEY_NAME, base64.b64encode(salt).decode())
         print("[+] Кодовая фраза установлена.")
+
 
 def verify_passphrase():
     try:
@@ -312,7 +328,7 @@ def verify_passphrase():
 
     root = tk.Tk()
     root.withdraw()
-    passphrase = tk.simpledialog.askstring("Verify", "Введите кодовую фразу:", show="*")
+    passphrase = sd.askstring("Проверка", "Введите кодовую фразу:", show="*")
     if not passphrase:
         mb.showerror("Ошибка", "Кодовая фраза не указана.")
         sys.exit(1)
@@ -323,11 +339,12 @@ def verify_passphrase():
         sys.exit(1)
     return key  # Возвращаем сессионный ключ
 
+
 def encrypt_file_on_exit(key):
     if os.path.exists(JSON_FILE):
         with open(JSON_FILE, "rb") as f:
             data = f.read()
-        desc = win32crypt.DATA_BLOB()
+
         encrypted_blob = win32crypt.CryptProtectData(
             win32crypt.DATA_BLOB(data),
             None,
@@ -339,7 +356,8 @@ def encrypt_file_on_exit(key):
         with open(ENC_FILE, "wb") as ef:
             ef.write(encrypted_blob.pbData)
         os.remove(JSON_FILE)
-        print("[*] Данные зашифрованы при выходе.")
+        print("[*] users.json зашифрован как users.enc")
+
 
 def decrypt_file_on_start(key):
     if os.path.exists(ENC_FILE):
@@ -349,69 +367,8 @@ def decrypt_file_on_start(key):
         decrypted_data = win32crypt.CryptUnprotectData(blob, None, key, None, None, 0)[1]
         with open(JSON_FILE, "wb") as f:
             f.write(decrypted_data)
-        print("[*] Данные расшифрованы при запуске.")
+        print("[*] users.enc расшифрован в users.json")
 
-import win32crypt
-import win32cryptcon
-import ctypes
-import ctypes.wintypes
-import secrets
-
-def encrypt_user_file(passphrase):
-    if not os.path.exists("users.json"):
-        return
-
-    with open("users.json", "rb") as f:
-        plaintext = f.read()
-
-    salt = secrets.token_bytes(16)
-    session_key_material = hashlib.sha256(passphrase.encode() + salt).digest()
-
-    # Используем CryptProtectData (простой способ через CryptoAPI)
-    encrypted_data = win32crypt.CryptProtectData(
-        plaintext,
-        None,
-        session_key_material,
-        None,
-        None,
-        0
-    )[1]
-
-    with open("users.json.enc", "wb") as f:
-        f.write(salt + encrypted_data)
-
-    os.remove("users.json")
-    print("[+] Файл users.json зашифрован как users.json.enc")
-
-def decrypt_user_file(passphrase):
-    if not os.path.exists("users.json.enc"):
-        return
-
-    with open("users.json.enc", "rb") as f:
-        content = f.read()
-
-    salt = content[:16]
-    encrypted_data = content[16:]
-    session_key_material = hashlib.sha256(passphrase.encode() + salt).digest()
-
-    try:
-        decrypted = win32crypt.CryptUnprotectData(
-            encrypted_data,
-            None,
-            session_key_material,
-            None,
-            None,
-            0
-        )[1]
-    except Exception as e:
-        print("[-] Ошибка при расшифровке:", e)
-        mb.showerror("Ошибка", "Неверная кодовая фраза или повреждённый файл.")
-        sys.exit(1)
-
-    with open("users.json", "wb") as f:
-        f.write(decrypted)
-
-    print("[+] Файл users.json успешно расшифрован")
 
 if __name__ == "__main__":
     verify_signature()
