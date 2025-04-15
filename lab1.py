@@ -363,11 +363,12 @@ def encrypt_file_on_exit(key: bytes):
 
         # Шифруем данные с помощью CryptProtectData
         encrypted_blob = win32crypt.CryptProtectData(
-            data_blob,
-            None,  # Описание данных (можно оставить None)
-            key,   # Секретный ключ (entropy)
-            None,  # Reserved (должен быть None)
-            0      # Флаги (обычно 0)
+            data_blob,  # Данные для шифрования
+            None,        # Описание данных (не используем)
+            key,         # Секретный ключ (entropy)
+            None,        # Reserved (None)
+            None,        # CRYPTPROTECT_PROMPTSTRUCT (None)
+            0            # Флаги (обычно 0)
         )
 
         with open(ENC_FILE, "wb") as ef:
@@ -386,9 +387,10 @@ def decrypt_file_on_start(key: bytes):
         # Расшифровываем данные с помощью CryptUnprotectData
         decrypted_data = win32crypt.CryptUnprotectData(
             encrypted_blob,
-            None,  # Описание данных (можно оставить None)
+            None,  # Описание данных (не используем)
             key,   # Секретный ключ (entropy)
-            None,  # Reserved (должен быть None)
+            None,  # Reserved (None)
+            None,  # CRYPTPROTECT_PROMPTSTRUCT (None)
             0      # Флаги (обычно 0)
         )[1]  # Второй элемент результата содержит расшифрованные данные
 
