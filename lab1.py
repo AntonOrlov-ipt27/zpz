@@ -414,13 +414,14 @@ def decrypt_user_file(passphrase):
     print("[+] Файл users.json успешно расшифрован")
 
 if __name__ == "__main__":
-    verify_signature()
-    passphrase = verify_or_initialize_passphrase()
-    decrypt_user_file(passphrase)
+    initialize_passphrase()         # Запустится только при первом запуске
+    key = verify_passphrase()       # Вернёт сессионный ключ (SHA256(passphrase + salt))
+    decrypt_file_on_start(key)      # Расшифрует файл users.enc → users.json
 
-    print("[*] Launching the application...")
+    print("[*] Запуск приложения...")
     app = App()
-    try:
-        app.mainloop()
-    finally:
-        encrypt_user_file(passphrase)
+
+    # При закрытии — шифруем обратно
+    atexit.register(lambda: encrypt_file_on_exit(key))
+
+    app.mainloop()
