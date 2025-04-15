@@ -18,14 +18,7 @@ def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
     
 first_password = hash_password("")   
-
-if os.path.isfile("users.json") and os.access("users.json", os.R_OK):
-    ui = json.load(open("users.json"))
-else:
-    with open("users.json", 'w') as ui_file:
-        ui = {"admin": {"password": first_password, "restrict": False, "ban": False}}
-        ui_file.write(json.dumps(ui))
-    
+   
 class App(tk.Tk):
     def __init__(self, key):
         tk.Tk.__init__(self)
@@ -398,7 +391,21 @@ if __name__ == "__main__":
     key = initialize_passphrase()
     if key is None:
         key = verify_passphrase()
-    decrypt_file_on_start(key)
 
+    # Проверяем, существует ли зашифрованный файл и расшифрованный файл
+    if os.path.isfile("users.enc") and os.access("users.enc", os.R_OK):
+        if not os.path.isfile("users.json") or not os.access("users.json", os.R_OK):
+            # Если users.json не существует, расшифровываем users.enc
+            decrypt_file_on_start(key)
+    elif not os.path.isfile("users.json") or not os.access("users.json", os.R_OK):
+        # Если нет ни users.json, ни users.enc, создаем users.json с начальными данными
+        ui = {"admin": {"password": first_password, "restrict": False, "ban": False}}
+        with open("users.json", 'w') as ui_file:
+            ui_file.write(json.dumps(ui))
+
+        # Шифруем новый users.json в users.enc
+        encrypt_file_on_exit(key)
+
+    # Теперь можно быть уверенным, что users.json существует (либо был расшифрован, либо создан)
     app = App(key)
     app.mainloop()
