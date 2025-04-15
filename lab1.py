@@ -370,8 +370,9 @@ def encrypt_file_on_exit(key: bytes):
             0            # Флаги (обычно 0)
         )
 
+        # Записываем зашифрованные данные в файл
         with open(ENC_FILE, "wb") as ef:
-            ef.write(encrypted_blob)  # Записываем зашифрованные данные в файл
+            ef.write(encrypted_blob)  
         os.remove(JSON_FILE)
         print("[*] Данные зашифрованы при выходе.")
 
@@ -392,9 +393,9 @@ def decrypt_file_on_start(key: bytes):
             0      # Флаги (обычно 0)
         )[1]  # Второй элемент результата содержит расшифрованные данные
 
+        # Записываем расшифрованные данные в файл
         with open(JSON_FILE, "wb") as f:
-            f.write(decrypted_data)  # Записываем расшифрованные данные в файл
-
+            f.write(decrypted_data)
         print("[*] Данные расшифрованы при запуске.")
 
 if __name__ == "__main__":
