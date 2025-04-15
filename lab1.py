@@ -291,6 +291,7 @@ import tkinter.messagebox as mb
 import tkinter.simpledialog as sd
 import winreg
 import win32crypt
+import ctypes
 import atexit
 import sys
 
@@ -357,9 +358,12 @@ def encrypt_file_on_exit(key: bytes):
         with open(JSON_FILE, "rb") as f:
             data = f.read()
 
+        # Преобразуем данные в формат DATA_BLOB с помощью ctypes
+        data_blob = ctypes.create_string_buffer(data)
+
         # Шифруем данные с помощью CryptProtectData
         encrypted_blob = win32crypt.CryptProtectData(
-            win32crypt.DATA_BLOB(data),  # Данные для шифрования
+            data_blob,
             None,  # Описание данных (можно оставить None)
             key,   # Секретный ключ (entropy)
             None,  # Reserved (должен быть None)
@@ -376,9 +380,12 @@ def decrypt_file_on_start(key: bytes):
         with open(ENC_FILE, "rb") as ef:
             encrypted_data = ef.read()
 
+        # Преобразуем данные в формат DATA_BLOB с помощью ctypes
+        encrypted_blob = ctypes.create_string_buffer(encrypted_data)
+
         # Расшифровываем данные с помощью CryptUnprotectData
         decrypted_data = win32crypt.CryptUnprotectData(
-            win32crypt.DATA_BLOB(encrypted_data),  # Данные для расшифровки
+            encrypted_blob,
             None,  # Описание данных (можно оставить None)
             key,   # Секретный ключ (entropy)
             None,  # Reserved (должен быть None)
