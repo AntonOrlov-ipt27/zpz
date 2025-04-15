@@ -276,6 +276,7 @@ import base64
 import secrets
 import win32crypt
 import atexit
+import tkinter.simpledialog as sd
 
 PASS_KEY_NAME = "PassphraseHash"
 SALT_KEY_NAME = "Salt"
@@ -290,7 +291,7 @@ def initialize_passphrase():
     if not os.path.exists(ENC_FILE):  # Первый запуск
         root = tk.Tk()
         root.withdraw()
-        passphrase = tk.simpledialog.askstring("Setup", "Введите кодовую фразу:", show="*")
+        passphrase = sd.askstring("Setup", "Введите кодовую фразу:", show="*")
         if not passphrase:
             mb.showerror("Ошибка", "Кодовая фраза не указана.")
             sys.exit(1)
