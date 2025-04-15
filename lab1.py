@@ -298,8 +298,8 @@ import sys
 REG_PATH = r"Software\Orlov"
 PASS_KEY_NAME = "PassphraseHash"
 SALT_KEY_NAME = "Salt"
-ENC_FILE = "users.enc"
 JSON_FILE = "users.json"
+ENC_FILE = "users.enc"
 
 
 def store_registry_value(name, value):
@@ -317,7 +317,7 @@ def initialize_passphrase():
     if not os.path.exists(ENC_FILE):  # Первый запуск
         root = tk.Tk()
         root.withdraw()
-        passphrase = sd.askstring("Установка", "Введите кодовую фразу:", show="*")
+        passphrase = sd.askstring("Setup", "Введите кодовую фразу:", show="*")
         if not passphrase:
             mb.showerror("Ошибка", "Кодовая фраза не указана.")
             sys.exit(1)
@@ -327,6 +327,7 @@ def initialize_passphrase():
         store_registry_value(PASS_KEY_NAME, base64.b64encode(key).decode())
         store_registry_value(SALT_KEY_NAME, base64.b64encode(salt).decode())
         print("[+] Кодовая фраза установлена.")
+        return key
 
 
 def verify_passphrase():
@@ -351,31 +352,31 @@ def verify_passphrase():
     return key  # Возвращаем сессионный ключ
 
 
-def encrypt_file_on_exit(key):
+def encrypt_file_on_exit(key: bytes):
     if os.path.exists(JSON_FILE):
         with open(JSON_FILE, "rb") as f:
             data = f.read()
 
-        encrypted_data = win32crypt.CryptProtectData(
+        # Шифруем через CryptoAPI (CryptProtectData)
+        encrypted_blob = win32crypt.CryptProtectData(
             data,
             None,
-            key,
+            key,  # это и есть entropy
             None,
             None,
             0
         )
-
         with open(ENC_FILE, "wb") as ef:
-            ef.write(encrypted_data)
+            ef.write(encrypted_blob)
         os.remove(JSON_FILE)
         print("[*] Данные зашифрованы при выходе.")
 
-
-def decrypt_file_on_start(key):
+def decrypt_file_on_start(key: bytes):
     if os.path.exists(ENC_FILE):
         with open(ENC_FILE, "rb") as ef:
             encrypted_data = ef.read()
 
+        # Расшифровываем через CryptoAPI (CryptUnprotectData)
         decrypted_data = win32crypt.CryptUnprotectData(
             encrypted_data,
             None,
@@ -384,16 +385,15 @@ def decrypt_file_on_start(key):
             None,
             0
         )[1]
-
         with open(JSON_FILE, "wb") as f:
             f.write(decrypted_data)
         print("[*] Данные расшифрованы при запуске.")
 
-
 if __name__ == "__main__":
     verify_signature()
-    initialize_passphrase()
-    key = verify_passphrase()
+    key = initialize_passphrase()
+    if key is None:
+        key = verify_passphrase()
     decrypt_file_on_start(key)
 
     app = App(key)
