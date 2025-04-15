@@ -364,7 +364,6 @@ def encrypt_file_on_exit(key: bytes):
         # Шифруем данные с помощью CryptProtectData
         encrypted_blob = win32crypt.CryptProtectData(
             data_blob,  # Данные для шифрования
-            None,        # Описание данных (не используем)
             key,         # Секретный ключ (entropy)
             None,        # Reserved (None)
             None,        # CRYPTPROTECT_PROMPTSTRUCT (None)
@@ -387,7 +386,6 @@ def decrypt_file_on_start(key: bytes):
         # Расшифровываем данные с помощью CryptUnprotectData
         decrypted_data = win32crypt.CryptUnprotectData(
             encrypted_blob,
-            None,  # Описание данных (не используем)
             key,   # Секретный ключ (entropy)
             None,  # Reserved (None)
             None,  # CRYPTPROTECT_PROMPTSTRUCT (None)
