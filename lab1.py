@@ -287,6 +287,7 @@ import win32crypt
 import ctypes
 import atexit
 import sys
+import time
 
 # Константы
 REG_PATH = r"Software\Orlov"
@@ -389,31 +390,36 @@ def decrypt_file_on_start(key: bytes):
 if __name__ == "__main__":
     verify_signature()
     key = initialize_passphrase()
+
     if key is None:
         key = verify_passphrase()
 
-    # Проверка на наличие зашифрованного файла
+    # Проверка, есть ли зашифрованный файл
     if os.path.isfile("users.enc") and os.access("users.enc", os.R_OK):
-        # Если файл users.enc существует, расшифровываем его в users.json
+        # Если файл users.enc существует, расшифровываем его
         decrypt_file_on_start(key)
         
         # После расшифровки users.json, удаляем users.enc
         os.remove("users.enc")
         print("[*] Зашифрованный файл удален, данные теперь хранятся как users.json.")
-
+    
     elif not os.path.isfile("users.json") or not os.access("users.json", os.R_OK):
-        # Если файл users.json не существует, создаем новый и шифруем его в users.enc
+        # Если файл users.json не существует, создаем новый
         ui = {"admin": {"password": first_password, "restrict": False, "ban": False}}
+        
+        # Ждем 1 секунду, чтобы файл точно был доступен
+        time.sleep(1)
+        
         with open("users.json", 'w') as ui_file:
             ui_file.write(json.dumps(ui))
         
-        # Шифруем новый users.json в users.enc
+        # После создания users.json шифруем его в users.enc
         encrypt_file_on_exit(key)
         
         # Удаляем users.json после шифрования
         os.remove("users.json")
         print("[*] Новый users.json был зашифрован в users.enc и удален.")
 
-    # Теперь файл users.json будет либо расшифрован из users.enc, либо создан и зашифрован заново
+    # После этого будет загружен интерфейс
     app = App(key)
     app.mainloop()
