@@ -356,29 +356,38 @@ def encrypt_file_on_exit(key):
         with open(JSON_FILE, "rb") as f:
             data = f.read()
 
-        encrypted_blob = win32crypt.CryptProtectData(
-            win32crypt.DATA_BLOB(data),
+        encrypted_data = win32crypt.CryptProtectData(
+            data,
             None,
             key,
             None,
             None,
             0
         )
+
         with open(ENC_FILE, "wb") as ef:
-            ef.write(encrypted_blob.pbData)
+            ef.write(encrypted_data)
         os.remove(JSON_FILE)
-        print("[*] users.json зашифрован как users.enc")
+        print("[*] Данные зашифрованы при выходе.")
 
 
 def decrypt_file_on_start(key):
     if os.path.exists(ENC_FILE):
         with open(ENC_FILE, "rb") as ef:
             encrypted_data = ef.read()
-        blob = win32crypt.DATA_BLOB(encrypted_data)
-        decrypted_data = win32crypt.CryptUnprotectData(blob, None, key, None, None, 0)[1]
+
+        decrypted_data = win32crypt.CryptUnprotectData(
+            encrypted_data,
+            None,
+            key,
+            None,
+            None,
+            0
+        )[1]
+
         with open(JSON_FILE, "wb") as f:
             f.write(decrypted_data)
-        print("[*] users.enc расшифрован в users.json")
+        print("[*] Данные расшифрованы при запуске.")
 
 
 if __name__ == "__main__":
