@@ -276,8 +276,9 @@ def verify_signature():
 import base64
 import secrets
 import tkinter.simpledialog as sd
-import win32crypt
 import time
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.backends import default_backend
 
 PASS_KEY_NAME = "PassphraseHash"
 SALT_KEY_NAME = "Salt"
@@ -334,17 +335,19 @@ def encrypt_file_on_exit(key: bytes):
         with open(JSON_FILE, "rb") as f:
             data = f.read()
 
-        encrypted_blob = win32crypt.CryptProtectData(
-            data,
-            None,
-            key,
-            None,
-            None,
-            0
-        )
+        # Генерируем nonce (уникальное случайное значение для потока)
+        nonce = secrets.token_bytes(16)  # Для ChaCha20 нужно 16 байт
 
+        algorithm = algorithms.ChaCha20(key, nonce)
+        cipher = Cipher(algorithm, mode=None, backend=default_backend())
+        encryptor = cipher.encryptor()
+
+        encrypted_data = encryptor.update(data)
+
+        # Сохраняем nonce + ciphertext
         with open(ENC_FILE, "wb") as ef:
-            ef.write(encrypted_blob)  
+            ef.write(nonce + encrypted_data)
+
         os.remove(JSON_FILE)
         print("[*] Data is encrypted before exit.")
 
@@ -352,15 +355,17 @@ def encrypt_file_on_exit(key: bytes):
 def decrypt_file_on_start(key: bytes):
     if os.path.exists(ENC_FILE):
         with open(ENC_FILE, "rb") as ef:
-            encrypted_data = ef.read()
+            full_data = ef.read()
 
-        decrypted_data = win32crypt.CryptUnprotectData(
-            encrypted_data,
-            key,
-            None,
-            None,
-            0
-        )[1]
+        # Отделяем nonce от зашифрованного содержимого
+        nonce = full_data[:16]
+        encrypted_data = full_data[16:]
+
+        algorithm = algorithms.ChaCha20(key, nonce)
+        cipher = Cipher(algorithm, mode=None, backend=default_backend())
+        decryptor = cipher.decryptor()
+
+        decrypted_data = decryptor.update(encrypted_data)
 
         with open(JSON_FILE, "wb") as f:
             f.write(decrypted_data)
