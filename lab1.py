@@ -273,13 +273,6 @@ def verify_signature():
         sys.exit(1)
 
 #Lab3 addition
-import base64
-import secrets
-import tkinter.simpledialog as sd
-import time
-from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-from cryptography.hazmat.backends import default_backend
-
 PASS_KEY_NAME = "PassphraseHash"
 JSON_FILE = "users.json"
 ENC_FILE = "users.enc"
@@ -290,51 +283,64 @@ def store_registry_value(name, value):
         winreg.SetValueEx(key, name, 0, winreg.REG_SZ, value)
 
 
+def get_registry_value(name):
+    try:
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, REG_PATH) as key:
+            value, _ = winreg.QueryValueEx(key, name)
+        return value
+    except FileNotFoundError:
+        return None
+
+
 def initialize_passphrase():
     if not os.path.exists(ENC_FILE):
         root = tk.Tk()
         root.withdraw()
         passphrase = sd.askstring("Setup", "Enter Passphrase:", show="*")
         if not passphrase:
-            mb.showerror("Error", "Missing Passphrase.")
+            print("Error: Missing Passphrase.")
             sys.exit(1)
 
-        # Генерируем ключ только из пароля без соли
-        key = hashlib.sha256(passphrase.encode()).digest()
-        store_registry_value(PASS_KEY_NAME, base64.b64encode(key).decode())
-        print("[+] Passphrase setted up.")
-        return key
+        # Хешируем пассфрейз и сохраняем в реестр
+        passphrase_hash = hashlib.sha256(passphrase.encode()).hexdigest()
+        store_registry_value(PASS_KEY_NAME, passphrase_hash)
+        print("[+] Passphrase set up.")
+        return passphrase  # возвращаем сам пассфрейз
 
 
 def verify_passphrase():
     try:
-        stored_hash = base64.b64decode(get_registry_value(PASS_KEY_NAME))
+        stored_hash = get_registry_value(PASS_KEY_NAME)  # Получаем хеш из реестра
     except Exception:
-        mb.showerror("Error", "Passphrase is not setted up.")
+        print("Error: Passphrase is not set.")
         sys.exit(1)
 
     root = tk.Tk()
     root.withdraw()
-    passphrase = sd.askstring("Check", "Input Passphrase:", show="*")
+    passphrase = sd.askstring("Check", "Enter Passphrase:", show="*")
     if not passphrase:
-        mb.showerror("Error", "Missing Passphrase.")
+        print("Error: Missing Passphrase.")
         sys.exit(1)
 
-    # Создаем ключ из пароля без соли
-    key = hashlib.sha256(passphrase.encode()).digest()
-    if key != stored_hash:
-        mb.showerror("Error", "Wrong Passphrase.")
+    # Хешируем введённый пассфрейз и сравниваем с тем, что в реестре
+    input_hash = hashlib.sha256(passphrase.encode()).hexdigest()
+    if input_hash != stored_hash:
+        print("Error: Incorrect Passphrase.")
         sys.exit(1)
-    return key
+
+    return passphrase  # возвращаем сам пассфрейз
 
 
-def encrypt_file_on_exit(key: bytes):
+def encrypt_file_on_exit(passphrase: str):
     if os.path.exists(JSON_FILE):
         with open(JSON_FILE, "rb") as f:
             data = f.read()
 
-        # Генерируем nonce (уникальное случайное значение для потока)
+        # Генерация nonce (уникального случайного значения для потока)
         nonce = secrets.token_bytes(16)  # Для ChaCha20 нужно 16 байт
+
+        # Хешируем пассфрейз для генерации ключа
+        key = hashlib.sha256(passphrase.encode()).digest()
 
         algorithm = algorithms.ChaCha20(key, nonce)
         cipher = Cipher(algorithm, mode=None, backend=default_backend())
@@ -342,22 +348,25 @@ def encrypt_file_on_exit(key: bytes):
 
         encrypted_data = encryptor.update(data)
 
-        # Сохраняем nonce + ciphertext
+        # Сохраняем nonce + зашифрованные данные
         with open(ENC_FILE, "wb") as ef:
             ef.write(nonce + encrypted_data)
 
         os.remove(JSON_FILE)
-        print("[*] Data is encrypted before exit.")
+        print("[*] Data encrypted before exit.")
 
 
-def decrypt_file_on_start(key: bytes):
+def decrypt_file_on_start(passphrase: str):
     if os.path.exists(ENC_FILE):
         with open(ENC_FILE, "rb") as ef:
             full_data = ef.read()
 
-        # Отделяем nonce от зашифрованного содержимого
+        # Отделяем nonce от зашифрованных данных
         nonce = full_data[:16]
         encrypted_data = full_data[16:]
+
+        # Хешируем пассфрейз для генерации ключа
+        key = hashlib.sha256(passphrase.encode()).digest()
 
         algorithm = algorithms.ChaCha20(key, nonce)
         cipher = Cipher(algorithm, mode=None, backend=default_backend())
@@ -367,29 +376,32 @@ def decrypt_file_on_start(key: bytes):
 
         with open(JSON_FILE, "wb") as f:
             f.write(decrypted_data)
-        print("[*] Data is decrypted.")
-
+        print("[*] Data decrypted.")
 
 
 if __name__ == "__main__":
-    verify_signature()
+    # Инициализация и проверка сигнатуры (если необходимо)
+    # verify_signature()
 
-    key = initialize_passphrase()
-    if key is None:
-        key = verify_passphrase()
+    passphrase = None
+    if not os.path.exists(ENC_FILE):
+        passphrase = initialize_passphrase()  # Инициализация при первом запуске
+    else:
+        passphrase = verify_passphrase()  # Проверка пассфрейза при последующих запусках
 
+    # Проверка и расшифровка файла при запуске
     if os.path.exists(ENC_FILE) and os.access(ENC_FILE, os.R_OK):
-        decrypt_file_on_start(key)
+        decrypt_file_on_start(passphrase)
         os.remove(ENC_FILE)
-        with open("users.json", "r") as f:
+        with open(JSON_FILE, "r") as f:
             ui = json.load(f)
-
     elif not os.path.exists(JSON_FILE) or not os.access(JSON_FILE, os.R_OK):
-        ui = {"admin": {"password": first_password, "restrict": False, "ban": False}}
+        # Создание нового файла, если его нет
+        ui = {"admin": {"password": "first_password", "restrict": False, "ban": False}}
         time.sleep(1)
         with open(JSON_FILE, 'w') as ui_file:
             json.dump(ui, ui_file)
         print("[*] 'users.json' was created.")
-        
-    app = App(key)
+
+    app = App(passphrase)
     app.mainloop()
