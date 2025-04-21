@@ -271,7 +271,6 @@ def verify_signature():
 import secrets
 import tkinter.simpledialog as sd
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms
-from cryptography.hazmat.backends import default_backend
 
 PASS_KEY_NAME = "PassphraseHash"
 JSON_FILE = "users.json"
@@ -333,7 +332,7 @@ def encrypt_file_on_exit(passphrase: str):
         nonce = secrets.token_bytes(16)
         key = passphrase.encode("utf-8").ljust(32, b'\0')[:32]
         algorithm = algorithms.ChaCha20(key, nonce)
-        cipher = Cipher(algorithm, mode=None, backend=default_backend())
+        cipher = Cipher(algorithm, mode=None)
         encryptor = cipher.encryptor()
         encrypted_data = encryptor.update(data)
         with open(ENC_FILE, "wb") as ef:
@@ -350,7 +349,7 @@ def decrypt_file_on_start(passphrase: str):
         encrypted_data = full_data[16:]
         key = passphrase.encode("utf-8").ljust(32, b'\0')[:32]
         algorithm = algorithms.ChaCha20(key, nonce)
-        cipher = Cipher(algorithm, mode=None, backend=default_backend())
+        cipher = Cipher(algorithm, mode=None)
         decryptor = cipher.decryptor()
         decrypted_data = decryptor.update(encrypted_data)
         with open(JSON_FILE, "wb") as f:
