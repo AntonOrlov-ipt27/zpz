@@ -23,10 +23,9 @@ class App(tk.Tk):
     def __init__(self, key):
         tk.Tk.__init__(self)
 
-        self.key = key  # сохраняем ключ
+        self.key = key
         self.page = None
 
-        # Меню
         about_menu = tk.Menu(self, tearoff=0)
         about_menu.add_command(label="Про програму", command=lambda: mb.showinfo(
             "Info", "Автор: ФБ-22 Орлов Антон\nВаріант №6"))
@@ -37,7 +36,6 @@ class App(tk.Tk):
         self.switch_page(LoginPage)
         self.geometry("600x300")
 
-        # Обработчик закрытия окна
         self.protocol("WM_DELETE_WINDOW", self.on_exit)
 
     def switch_page(self, page_class):
@@ -274,23 +272,13 @@ def verify_signature():
         print("[-] Error: Signature does not match. Unable to launch.")
         sys.exit(1)
 
-#NEW
-import hashlib
+#Lab3 addition
 import base64
-import os
 import secrets
-import tkinter as tk
-import tkinter.messagebox as mb
 import tkinter.simpledialog as sd
-import winreg
 import win32crypt
-import ctypes
-import atexit
-import sys
 import time
 
-# Константы
-REG_PATH = r"Software\Orlov"
 PASS_KEY_NAME = "PassphraseHash"
 SALT_KEY_NAME = "Salt"
 JSON_FILE = "users.json"
@@ -302,26 +290,20 @@ def store_registry_value(name, value):
         winreg.SetValueEx(key, name, 0, winreg.REG_SZ, value)
 
 
-def get_registry_value(name):
-    with winreg.OpenKey(winreg.HKEY_CURRENT_USER, REG_PATH, 0, winreg.KEY_READ) as key:
-        value, _ = winreg.QueryValueEx(key, name)
-        return value
-
-
 def initialize_passphrase():
-    if not os.path.exists(ENC_FILE):  # Первый запуск
+    if not os.path.exists(ENC_FILE):
         root = tk.Tk()
         root.withdraw()
-        passphrase = sd.askstring("Setup", "Введите кодовую фразу:", show="*")
+        passphrase = sd.askstring("Setup", "Enter Passphrase:", show="*")
         if not passphrase:
-            mb.showerror("Ошибка", "Кодовая фраза не указана.")
+            mb.showerror("Error", "Missing Passphrase.")
             sys.exit(1)
 
         salt = secrets.token_bytes(16)
         key = hashlib.sha256(passphrase.encode() + salt).digest()
         store_registry_value(PASS_KEY_NAME, base64.b64encode(key).decode())
         store_registry_value(SALT_KEY_NAME, base64.b64encode(salt).decode())
-        print("[+] Кодовая фраза установлена.")
+        print("[+] Passphrase setted up.")
         return key
 
 
@@ -330,21 +312,21 @@ def verify_passphrase():
         stored_hash = base64.b64decode(get_registry_value(PASS_KEY_NAME))
         salt = base64.b64decode(get_registry_value(SALT_KEY_NAME))
     except Exception:
-        mb.showerror("Ошибка", "Кодовая фраза не настроена.")
+        mb.showerror("Error", "Passphrase is not setted up.")
         sys.exit(1)
 
     root = tk.Tk()
     root.withdraw()
-    passphrase = sd.askstring("Проверка", "Введите кодовую фразу:", show="*")
+    passphrase = sd.askstring("Check", "Input Passphrase:", show="*")
     if not passphrase:
-        mb.showerror("Ошибка", "Кодовая фраза не указана.")
+        mb.showerror("Error", "Missing Passphrase.")
         sys.exit(1)
 
     key = hashlib.sha256(passphrase.encode() + salt).digest()
     if key != stored_hash:
-        mb.showerror("Ошибка", "Неверная кодовая фраза.")
+        mb.showerror("Error", "Wrong Passphrase.")
         sys.exit(1)
-    return key  # Возвращаем сессионный ключ
+    return key
 
 
 def encrypt_file_on_exit(key: bytes):
@@ -352,66 +334,59 @@ def encrypt_file_on_exit(key: bytes):
         with open(JSON_FILE, "rb") as f:
             data = f.read()
 
-        # Шифруем данные с помощью CryptProtectData
         encrypted_blob = win32crypt.CryptProtectData(
-            data,  # Данные для шифрования (прямо байты)
-            None,  # Название данных, None для простоты
-            key,   # Секретный ключ (entropy)
-            None,  # Reserved (None)
-            None,  # CRYPTPROTECT_PROMPTSTRUCT (None)
-            0      # Флаги (обычно 0)
+            data,
+            None,
+            key,
+            None,
+            None,
+            0
         )
 
-        # Записываем зашифрованные данные в файл
         with open(ENC_FILE, "wb") as ef:
             ef.write(encrypted_blob)  
         os.remove(JSON_FILE)
-        print("[*] Данные зашифрованы при выходе.")
+        print("[*] Data is encrypted before exit.")
+
 
 def decrypt_file_on_start(key: bytes):
     if os.path.exists(ENC_FILE):
         with open(ENC_FILE, "rb") as ef:
             encrypted_data = ef.read()
 
-        # Расшифровываем данные с помощью CryptUnprotectData
         decrypted_data = win32crypt.CryptUnprotectData(
-            encrypted_data,  # Данные для расшифровки (прямо байты)
-            key,   # Секретный ключ (entropy)
-            None,  # Reserved (None)
-            None,  # CRYPTPROTECT_PROMPTSTRUCT (None)
-            0      # Флаги (обычно 0)
-        )[1]  # Второй элемент результата содержит расшифрованные данные
+            encrypted_data,
+            key,
+            None,
+            None,
+            0
+        )[1]
 
-        # Записываем расшифрованные данные в файл
         with open(JSON_FILE, "wb") as f:
             f.write(decrypted_data)
-        print("[*] Данные расшифрованы при запуске.")
+        print("[*] Data is decrypted.")
+
+
 
 if __name__ == "__main__":
-    verify_signature()  # 1. Проверка сигнатуры
+    verify_signature()
 
-    # 2. Проверка кодовой фразы
     key = initialize_passphrase()
     if key is None:
         key = verify_passphrase()
 
-    # 3. Работа с файлами
     if os.path.exists(ENC_FILE) and os.access(ENC_FILE, os.R_OK):
-        # Есть users.enc — расшифровываем
         decrypt_file_on_start(key)
         os.remove(ENC_FILE)
         with open("users.json", "r") as f:
             ui = json.load(f)
-        print("[*] Зашифрованный файл удалён, данные сохранены как users.json.")
 
     elif not os.path.exists(JSON_FILE) or not os.access(JSON_FILE, os.R_OK):
-        # Нет ни .json, ни .enc — создаём новый users.json
         ui = {"admin": {"password": first_password, "restrict": False, "ban": False}}
         time.sleep(1)
         with open(JSON_FILE, 'w') as ui_file:
             json.dump(ui, ui_file)
-        print("[*] Новый users.json был создан.")
+        print("[*] 'users.json' was created.")
         
-    # 4. Запуск GUI
     app = App(key)
     app.mainloop()
