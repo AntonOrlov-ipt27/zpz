@@ -268,11 +268,9 @@ def verify_signature():
         sys.exit(1)
 
 #Lab3 addition
-import base64
 import secrets
 import tkinter.simpledialog as sd
-import time
-from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms
 from cryptography.hazmat.backends import default_backend
 
 PASS_KEY_NAME = "PassphraseHash"
@@ -375,7 +373,6 @@ if __name__ == "__main__":
             ui = json.load(f)
     elif not os.path.exists(JSON_FILE) or not os.access(JSON_FILE, os.R_OK):
         ui = {"admin": {"password": first_password, "restrict": False, "ban": False}}
-        time.sleep(1)
         with open(JSON_FILE, 'w') as ui_file:
             json.dump(ui, ui_file)
         print("[*] 'users.json' was created.")
