@@ -273,6 +273,14 @@ def verify_signature():
         sys.exit(1)
 
 #Lab3 addition
+
+import base64
+import secrets
+import tkinter.simpledialog as sd
+import time
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.backends import default_backend
+
 PASS_KEY_NAME = "PassphraseHash"
 JSON_FILE = "users.json"
 ENC_FILE = "users.enc"
