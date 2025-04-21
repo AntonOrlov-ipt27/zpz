@@ -374,7 +374,7 @@ if __name__ == "__main__":
         with open(JSON_FILE, "r") as f:
             ui = json.load(f)
     elif not os.path.exists(JSON_FILE) or not os.access(JSON_FILE, os.R_OK):
-        ui = {"admin": {"password": "first_password", "restrict": False, "ban": False}}
+        ui = {"admin": {"password": first_password, "restrict": False, "ban": False}}
         time.sleep(1)
         with open(JSON_FILE, 'w') as ui_file:
             json.dump(ui, ui_file)
