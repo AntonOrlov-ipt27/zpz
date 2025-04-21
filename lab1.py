@@ -333,7 +333,7 @@ def encrypt_file_on_exit(passphrase: str):
         with open(JSON_FILE, "rb") as f:
             data = f.read()
         nonce = secrets.token_bytes(16)
-        key = hashlib.sha256(passphrase.encode()).digest()
+        key = passphrase.encode("utf-8").ljust(32, b'\0')[:32]
         algorithm = algorithms.ChaCha20(key, nonce)
         cipher = Cipher(algorithm, mode=None, backend=default_backend())
         encryptor = cipher.encryptor()
@@ -350,7 +350,7 @@ def decrypt_file_on_start(passphrase: str):
             full_data = ef.read()
         nonce = full_data[:16]
         encrypted_data = full_data[16:]
-        key = hashlib.sha256(passphrase.encode()).digest()
+        key = passphrase.encode("utf-8").ljust(32, b'\0')[:32]
         algorithm = algorithms.ChaCha20(key, nonce)
         cipher = Cipher(algorithm, mode=None, backend=default_backend())
         decryptor = cipher.decryptor()
