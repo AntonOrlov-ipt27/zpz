@@ -281,7 +281,6 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.backends import default_backend
 
 PASS_KEY_NAME = "PassphraseHash"
-SALT_KEY_NAME = "Salt"
 JSON_FILE = "users.json"
 ENC_FILE = "users.enc"
 
@@ -300,10 +299,9 @@ def initialize_passphrase():
             mb.showerror("Error", "Missing Passphrase.")
             sys.exit(1)
 
-        salt = secrets.token_bytes(16)
-        key = hashlib.sha256(passphrase.encode() + salt).digest()
+        # Генерируем ключ только из пароля без соли
+        key = hashlib.sha256(passphrase.encode()).digest()
         store_registry_value(PASS_KEY_NAME, base64.b64encode(key).decode())
-        store_registry_value(SALT_KEY_NAME, base64.b64encode(salt).decode())
         print("[+] Passphrase setted up.")
         return key
 
@@ -311,7 +309,6 @@ def initialize_passphrase():
 def verify_passphrase():
     try:
         stored_hash = base64.b64decode(get_registry_value(PASS_KEY_NAME))
-        salt = base64.b64decode(get_registry_value(SALT_KEY_NAME))
     except Exception:
         mb.showerror("Error", "Passphrase is not setted up.")
         sys.exit(1)
@@ -323,7 +320,8 @@ def verify_passphrase():
         mb.showerror("Error", "Missing Passphrase.")
         sys.exit(1)
 
-    key = hashlib.sha256(passphrase.encode() + salt).digest()
+    # Создаем ключ из пароля без соли
+    key = hashlib.sha256(passphrase.encode()).digest()
     if key != stored_hash:
         mb.showerror("Error", "Wrong Passphrase.")
         sys.exit(1)
